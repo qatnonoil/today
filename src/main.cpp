@@ -269,12 +269,17 @@ public:
 */
 void main(int32_t argc, char* argv[])
 {
+    // カレントディレクトリをexeがあるパスにする
+    char binFilePath[MAX_PATH];
+    ::GetModuleFileNameA(nullptr, binFilePath, sizeof(binFilePath) / sizeof(*binFilePath));
+    ::PathRemoveFileSpec(binFilePath);
+    SetCurrentDirectory(binFilePath);
+
     // テキストのパス
-    char txtPath[MAX_PATH+1];
-    GetPrivateProfileString("config","txtdir", "", txtPath, MAX_PATH,"./today.ini");
+    char txtPath[MAX_PATH];
+    GetPrivateProfileString("config", "txtdir", "", txtPath, sizeof(txtPath) / sizeof(*txtPath), "./today.ini");
     g_txtPath = txtPath;
     printf("txt path [%s]\n", txtPath);
-
     // コマンドが指定されていなければ今日のファイルを作成する
     if (argc == 1)
     {
