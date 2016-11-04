@@ -32,15 +32,26 @@ public:
     {
         return t_->tm_mday;
     }
-    std::string toString() const
+    std::string toStringYYYYMMDD() const
     {
         std::stringstream ss;
         ss << year() << "_" << month() << "_" << mday();
         return ss.str();
     }
+    std::string toStringYYYYMM() const
+    {
+        std::stringstream ss;
+        ss << year() << "_" << month();
+        return ss.str();
+    }
     std::string createFileName() const
     {
-        std::string fileName = g_txtPath + toString() + ".txt";
+        std::string fileName = g_txtPath + toStringYYYYMMDD() + ".txt";
+        return fileName;
+    }
+    std::string createFileNameYYYYMM() const
+    {
+        std::string fileName = g_txtPath + toStringYYYYMM() + ".txt";
         return fileName;
     }
 private:
@@ -175,6 +186,62 @@ public:
 
 /*
 -----------------------------------------------
+tmpファイルを作成する
+-----------------------------------------------
+*/
+class CommandTmp
+    :public Command
+{
+public:
+    CommandTmp() {}
+    virtual std::string name() override
+    {
+        return "tmp";
+    }
+    virtual std::string description() override
+    {
+        return "create tmp file.";
+    }
+    virtual void exec(int32_t argc, char* argv[]) override
+    {
+        // ファイル名を生成する
+        const std::size_t hash = std::hash<int32_t>{}(timeGetTime());
+        const std::string hasStr = g_txtPath + std::string("tmp_") + std::to_string(hash&0xFFFF) + std::string(".txt");
+        // ファイルを開く
+        openFile(hasStr);
+    }
+};
+
+/*
+-----------------------------------------------
+todoファイルを作成する
+-----------------------------------------------
+*/
+class CommandTodo
+    :public Command
+{
+public:
+    CommandTodo() {}
+    virtual std::string name() override
+    {
+        return "todo";
+    }
+    virtual std::string description() override
+    {
+        return "open todo file.";
+    }
+    virtual void exec(int32_t argc, char* argv[]) override
+    {
+        // 月だけで区分する
+        Date date;
+        // ファイルを開く
+        std::string fileName = g_txtPath + "todo_" +date.toStringYYYYMM() + ".txt";
+        openFile(fileName);
+    }
+};
+
+/*
+-----------------------------------------------
 空のファイルを削除する
 -----------------------------------------------
 */
@@ -291,6 +358,8 @@ void main(int32_t argc, char* argv[])
     g_commands.clear();
     g_commands.emplace_back(std::make_shared<CommandToday>());
     g_commands.emplace_back(std::make_shared<CommandPrev>());
+    g_commands.emplace_back(std::make_shared<CommandTmp>());
+    g_commands.emplace_back(std::make_shared<CommandTodo>());
     g_commands.emplace_back(std::make_shared<CommandGC>());
     g_commands.emplace_back(std::make_shared<CommandHelp>());
     g_commands.emplace_back(std::make_shared<CommandVersion>());
