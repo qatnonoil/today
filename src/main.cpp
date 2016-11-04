@@ -1,6 +1,7 @@
 ﻿#include "pch.hpp"
 
 std::string g_txtPath;
+std::string g_sakuraPath;
 
 /*
 -----------------------------------------------
@@ -279,6 +280,44 @@ public:
     }
 };
 
+
+/*
+-----------------------------------------------
+grepの実行
+-----------------------------------------------
+*/
+class CommandGrep
+    :public Command
+{
+public:
+    CommandGrep() {}
+    virtual std::string name() override
+    {
+        return "grep";
+    }
+    virtual std::string description() override
+    {
+        return "grep files.";
+    }
+    virtual void exec(int32_t argc, char* argv[]) override
+    {
+        //sakura.exe -GREPMODE -GFOLDER="C:\Users\admin\Dropbox\today" - GKEY = "床" - GOPT = P
+        if (argc <= 2)
+        {
+            printf("no grep keyword.");
+            return;
+        }
+        // 検索文字列
+        const char* key = argv[2];
+        // sakuraの起動
+        const std::string command =
+            "\"\"" + g_sakuraPath + "\" -GREPMODE -GFOLDER=" + g_txtPath +
+            " -GKEY=\"" + std::string(key) + "\"  -GOPT=P\"";
+        printf("%s\n", command.c_str());
+        system(command.c_str());
+    }
+};
+
 /*
 -----------------------------------------------
 ヘルプを表示する
@@ -347,6 +386,12 @@ void main(int32_t argc, char* argv[])
     GetPrivateProfileString("config", "txtdir", "", txtPath, sizeof(txtPath) / sizeof(*txtPath), "./today.ini");
     g_txtPath = txtPath;
     printf("txt path [%s]\n", txtPath);
+
+    char sakuraPath[MAX_PATH];
+    GetPrivateProfileString("config", "sakuraPath", "", sakuraPath, sizeof(sakuraPath) / sizeof(*sakuraPath), "./today.ini");
+    g_sakuraPath = sakuraPath;
+    printf("sakura path [%s]\n", g_sakuraPath.c_str());
+
     // コマンドが指定されていなければ今日のファイルを作成する
     if (argc == 1)
     {
@@ -361,6 +406,7 @@ void main(int32_t argc, char* argv[])
     g_commands.emplace_back(std::make_shared<CommandTmp>());
     g_commands.emplace_back(std::make_shared<CommandTodo>());
     g_commands.emplace_back(std::make_shared<CommandGC>());
+    g_commands.emplace_back(std::make_shared<CommandGrep>());
     g_commands.emplace_back(std::make_shared<CommandHelp>());
     g_commands.emplace_back(std::make_shared<CommandVersion>());
     const std::string cmd = std::string(argv[1]);

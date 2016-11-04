@@ -15,4 +15,5 @@
 //
 #include <windows.h>
 #include <Shlwapi.h>
+#pragma comment(lib,"winmm.lib")
 #pragma comment(lib,"Shlwapi.lib")
