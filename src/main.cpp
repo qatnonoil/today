@@ -243,6 +243,34 @@ public:
 
 /*
 -----------------------------------------------
+doneファイルを作成する
+-----------------------------------------------
+*/
+class CommandDone
+    :public Command
+{
+public:
+    CommandDone() {}
+    virtual std::string name() override
+    {
+        return "done";
+    }
+    virtual std::string description() override
+    {
+        return "open done file.";
+    }
+    virtual void exec(int32_t argc, char* argv[]) override
+    {
+        // 月だけで区分する
+        Date date;
+        // ファイルを開く
+        std::string fileName = g_txtPath + "done_" + date.toStringYYYYMM() + ".txt";
+        openFile(fileName);
+    }
+};
+
+/*
+-----------------------------------------------
 空のファイルを削除する
 -----------------------------------------------
 */
@@ -405,6 +433,7 @@ void main(int32_t argc, char* argv[])
     g_commands.emplace_back(std::make_shared<CommandPrev>());
     g_commands.emplace_back(std::make_shared<CommandTmp>());
     g_commands.emplace_back(std::make_shared<CommandTodo>());
+    g_commands.emplace_back(std::make_shared<CommandDone>());
     g_commands.emplace_back(std::make_shared<CommandGC>());
     g_commands.emplace_back(std::make_shared<CommandGrep>());
     g_commands.emplace_back(std::make_shared<CommandHelp>());
