@@ -187,6 +187,45 @@ public:
 
 /*
 -----------------------------------------------
+goto
+-----------------------------------------------
+*/
+class CommandGoto
+    :public Command
+{
+public:
+    CommandGoto() {}
+    virtual std::string name() override
+    {
+        return "goto";
+    }
+    virtual std::string description() override
+    {
+        return "goto specified day and \"today\".";
+    }
+    virtual void exec(int32_t argc, char* argv[]) override
+    {
+        if (argc <= 2)
+        {
+            return;
+        }
+        /*
+        today goto +3
+        today goto -3
+        */
+        int32_t dayDiff = 0;
+        if (sscanf(argv[2], "%d", &dayDiff) != 1)
+        {
+            return;
+        }
+        Date date(dayDiff);
+        // ファイルを開く
+        openFile(date.createFileName());
+    }
+};
+
+/*
+-----------------------------------------------
 tmpファイルを作成する
 -----------------------------------------------
 */
@@ -431,6 +470,7 @@ void main(int32_t argc, char* argv[])
     g_commands.clear();
     g_commands.emplace_back(std::make_shared<CommandToday>());
     g_commands.emplace_back(std::make_shared<CommandPrev>());
+    g_commands.emplace_back(std::make_shared<CommandGoto>());
     g_commands.emplace_back(std::make_shared<CommandTmp>());
     g_commands.emplace_back(std::make_shared<CommandTodo>());
     g_commands.emplace_back(std::make_shared<CommandDone>());
