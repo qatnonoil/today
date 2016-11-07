@@ -89,7 +89,7 @@ FileStat fileStat(const std::string& fileName)
 -----------------------------------------------
 -----------------------------------------------
 */
-void openFile(const std::string& fileName)
+static void openFile(const std::string& fileName)
 {
     if (!fileStat(fileName).exist)
     {
@@ -100,6 +100,17 @@ void openFile(const std::string& fileName)
     // ファイルを開く
     const std::string command = "START " + fileName;
     system(command.c_str());
+}
+
+/*
+-----------------------------------------------
+-----------------------------------------------
+*/
+static void openMonthFile(const std::string& fileName)
+{
+    Date date;
+    std::string fileNameFull = g_txtPath + fileName + std::string("_") + date.toStringYYYYMM() + ".txt";
+    openFile(fileNameFull);
 }
 
 /*
@@ -272,11 +283,7 @@ public:
     }
     virtual void exec(int32_t argc, char* argv[]) override
     {
-        // 月だけで区分する
-        Date date;
-        // ファイルを開く
-        std::string fileName = g_txtPath + "todo_" +date.toStringYYYYMM() + ".txt";
-        openFile(fileName);
+        openMonthFile("todo");
     }
 };
 
@@ -300,11 +307,31 @@ public:
     }
     virtual void exec(int32_t argc, char* argv[]) override
     {
-        // 月だけで区分する
-        Date date;
-        // ファイルを開く
-        std::string fileName = g_txtPath + "done_" + date.toStringYYYYMM() + ".txt";
-        openFile(fileName);
+        openMonthFile("done");
+    }
+};
+
+/*
+-----------------------------------------------
+memoファイルを作成する
+-----------------------------------------------
+*/
+class CommandMemo
+    :public Command
+{
+public:
+    CommandMemo() {}
+    virtual std::string name() override
+    {
+        return "memo";
+    }
+    virtual std::string description() override
+    {
+        return "open memo file.";
+    }
+    virtual void exec(int32_t argc, char* argv[]) override
+    {
+        openMonthFile("memo");
     }
 };
 
@@ -379,7 +406,7 @@ public:
         // sakuraの起動
         const std::string command =
             "\"\"" + g_sakuraPath + "\" -GREPMODE -GFOLDER=" + g_txtPath +
-            " -GKEY=\"" + std::string(key) + "\"  -GOPT=P\"";
+            " -GKEY=\"" + std::string(key) + "\"  -GOPT=PS -GCODE=99\"";
         printf("%s\n", command.c_str());
         system(command.c_str());
     }
@@ -474,6 +501,7 @@ void main(int32_t argc, char* argv[])
     g_commands.emplace_back(std::make_shared<CommandTmp>());
     g_commands.emplace_back(std::make_shared<CommandTodo>());
     g_commands.emplace_back(std::make_shared<CommandDone>());
+    g_commands.emplace_back(std::make_shared<CommandMemo>());
     g_commands.emplace_back(std::make_shared<CommandGC>());
     g_commands.emplace_back(std::make_shared<CommandGrep>());
     g_commands.emplace_back(std::make_shared<CommandHelp>());
