@@ -6,7 +6,7 @@ solution "today"
 project "today"
    kind "ConsoleApp"
    language "C++"
-   targetdir "bin/%{cfg.buildcfg}"
+   targetdir "generated/bin/%{cfg.buildcfg}"
    pchsource "src/pch.cpp"
    pchheader "pch.hpp"
    includedirs { "src" }
