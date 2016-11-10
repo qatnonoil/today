@@ -414,6 +414,32 @@ public:
 
 /*
 -----------------------------------------------
+todayフォルダを開く
+-----------------------------------------------
+*/
+class CommandOpen
+    :public Command
+{
+public:
+    CommandOpen() {}
+    virtual std::string name() override
+    {
+        return "open";
+    }
+    virtual std::string description() override
+    {
+        return "oepn today folder.";
+    }
+    virtual void exec(int32_t argc, char* argv[]) override
+    {
+        // TODO: todayフォルダを開く
+        const std::string command = "explorer " + g_txtPath;
+        system(command.c_str());
+    }
+};
+
+/*
+-----------------------------------------------
 ヘルプを表示する
 -----------------------------------------------
 */
@@ -504,6 +530,7 @@ void main(int32_t argc, char* argv[])
     g_commands.emplace_back(std::make_shared<CommandMemo>());
     g_commands.emplace_back(std::make_shared<CommandGC>());
     g_commands.emplace_back(std::make_shared<CommandGrep>());
+    g_commands.emplace_back(std::make_shared<CommandOpen>());
     g_commands.emplace_back(std::make_shared<CommandHelp>());
     g_commands.emplace_back(std::make_shared<CommandVersion>());
     const std::string cmd = std::string(argv[1]);
