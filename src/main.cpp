@@ -115,6 +115,21 @@ static void openMonthFile(const std::string& fileName)
 
 /*
 -----------------------------------------------
+system()代替。起動後すぐ戻る。
+-----------------------------------------------
+*/
+static void doCommand(const std::string& command)
+{
+    PROCESS_INFORMATION pi = { 0 };
+    STARTUPINFO si = { sizeof(STARTUPINFO) };
+    CreateProcess(
+        nullptr, const_cast<char*>(command.c_str()),
+        nullptr, nullptr, FALSE, NORMAL_PRIORITY_CLASS,
+        nullptr, nullptr, &si, &pi);
+}
+
+/*
+-----------------------------------------------
 -----------------------------------------------
 */
 class Command
@@ -374,7 +389,6 @@ public:
     }
 };
 
-
 /*
 -----------------------------------------------
 grepの実行
@@ -405,10 +419,10 @@ public:
         const char* key = argv[2];
         // sakuraの起動
         const std::string command =
-            "\"\"" + g_sakuraPath + "\" -GREPMODE -GFOLDER=" + g_txtPath +
+            "\"" + g_sakuraPath + "\" -GREPMODE -GFOLDER=" + g_txtPath +
             " -GKEY=\"" + std::string(key) + "\"  -GOPT=PS -GCODE=99\"";
-        printf("%s\n", command.c_str());
-        system(command.c_str());
+        printf("cmd %s\n", command.c_str());
+        doCommand(command);
     }
 };
 
@@ -432,9 +446,9 @@ public:
     }
     virtual void exec(int32_t argc, char* argv[]) override
     {
-        // TODO: todayフォルダを開く
+        // todayフォルダを開く
         const std::string command = "explorer " + g_txtPath;
-        system(command.c_str());
+        doCommand(command.c_str());
     }
 };
 
