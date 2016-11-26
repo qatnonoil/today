@@ -252,34 +252,6 @@ public:
 
 /*
 -----------------------------------------------
-tmpファイルを作成する
------------------------------------------------
-*/
-class CommandTmp
-    :public Command
-{
-public:
-    CommandTmp() {}
-    virtual std::string name() override
-    {
-        return "tmp";
-    }
-    virtual std::string description() override
-    {
-        return "create tmp file.";
-    }
-    virtual void exec(int32_t argc, char* argv[]) override
-    {
-        // ファイル名を生成する
-        const std::size_t hash = std::hash<int32_t>{}(timeGetTime());
-        const std::string hasStr = g_txtPath + std::string("tmp_") + std::to_string(hash&0xFFFF) + std::string(".txt");
-        // ファイルを開く
-        openFile(hasStr);
-    }
-};
-
-/*
------------------------------------------------
 todoファイルを作成する
 -----------------------------------------------
 */
@@ -538,7 +510,6 @@ void main(int32_t argc, char* argv[])
     g_commands.emplace_back(std::make_shared<CommandToday>());
     g_commands.emplace_back(std::make_shared<CommandPrev>());
     g_commands.emplace_back(std::make_shared<CommandGoto>());
-    g_commands.emplace_back(std::make_shared<CommandTmp>());
     g_commands.emplace_back(std::make_shared<CommandTodo>());
     g_commands.emplace_back(std::make_shared<CommandDone>());
     g_commands.emplace_back(std::make_shared<CommandMemo>());
