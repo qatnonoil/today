@@ -324,6 +324,30 @@ public:
 
 /*
 -----------------------------------------------
+timeファイルを作成する
+-----------------------------------------------
+*/
+class CommandTime
+    :public Command
+{
+public:
+    CommandTime() {}
+    virtual std::string name() override
+    {
+        return "time";
+    }
+    virtual std::string description() override
+    {
+        return "open time file.";
+    }
+    virtual void exec(int32_t argc, char* argv[]) override
+    {
+        openMonthFile("time");
+    }
+};
+
+/*
+-----------------------------------------------
 空のファイルを削除する
 -----------------------------------------------
 */
@@ -513,6 +537,7 @@ void main(int32_t argc, char* argv[])
     g_commands.emplace_back(std::make_shared<CommandTodo>());
     g_commands.emplace_back(std::make_shared<CommandDone>());
     g_commands.emplace_back(std::make_shared<CommandMemo>());
+    g_commands.emplace_back(std::make_shared<CommandTime>());
     g_commands.emplace_back(std::make_shared<CommandGC>());
     g_commands.emplace_back(std::make_shared<CommandGrep>());
     g_commands.emplace_back(std::make_shared<CommandOpen>());
