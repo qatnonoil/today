@@ -1,9 +1,9 @@
-solution "today"
+solution "td"
    location "generated"
    configurations { "Debug", "Release", "Ship" }
    platforms {"x64"}
 
-project "today"
+project "td"
    kind "ConsoleApp"
    language "C++"
    targetdir "generated/bin/%{cfg.buildcfg}"

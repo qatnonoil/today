@@ -91,6 +91,7 @@ FileStat fileStat(const std::string& fileName)
 */
 static void openFile(const std::string& fileName)
 {
+    //
     if (!fileStat(fileName).exist)
     {
         // ファイルを生成する
@@ -252,102 +253,6 @@ public:
 
 /*
 -----------------------------------------------
-todoファイルを作成する
------------------------------------------------
-*/
-class CommandTodo
-    :public Command
-{
-public:
-    CommandTodo() {}
-    virtual std::string name() override
-    {
-        return "todo";
-    }
-    virtual std::string description() override
-    {
-        return "open todo file.";
-    }
-    virtual void exec(int32_t argc, char* argv[]) override
-    {
-        openMonthFile("todo");
-    }
-};
-
-/*
------------------------------------------------
-doneファイルを作成する
------------------------------------------------
-*/
-class CommandDone
-    :public Command
-{
-public:
-    CommandDone() {}
-    virtual std::string name() override
-    {
-        return "done";
-    }
-    virtual std::string description() override
-    {
-        return "open done file.";
-    }
-    virtual void exec(int32_t argc, char* argv[]) override
-    {
-        openMonthFile("done");
-    }
-};
-
-/*
------------------------------------------------
-memoファイルを作成する
------------------------------------------------
-*/
-class CommandMemo
-    :public Command
-{
-public:
-    CommandMemo() {}
-    virtual std::string name() override
-    {
-        return "memo";
-    }
-    virtual std::string description() override
-    {
-        return "open memo file.";
-    }
-    virtual void exec(int32_t argc, char* argv[]) override
-    {
-        openMonthFile("memo");
-    }
-};
-
-/*
------------------------------------------------
-timeファイルを作成する
------------------------------------------------
-*/
-class CommandTime
-    :public Command
-{
-public:
-    CommandTime() {}
-    virtual std::string name() override
-    {
-        return "time";
-    }
-    virtual std::string description() override
-    {
-        return "open time file.";
-    }
-    virtual void exec(int32_t argc, char* argv[]) override
-    {
-        openMonthFile("time");
-    }
-};
-
-/*
------------------------------------------------
 空のファイルを削除する
 -----------------------------------------------
 */
@@ -503,6 +408,23 @@ public:
 -----------------------------------------------
 -----------------------------------------------
 */
+std::string configString(
+    const std::string& region,
+    const std::string& config,
+    const std::string& defaultValue)
+{
+    const char* iniFile = "./today.ini";
+    char retValue[MAX_PATH];
+    GetPrivateProfileString(region.c_str(), config.c_str(), defaultValue.c_str(), retValue, sizeof(retValue) / sizeof(*retValue), iniFile);
+    std::string ret;
+    ret.assign(retValue);
+    return ret;
+}
+
+/*
+-----------------------------------------------
+-----------------------------------------------
+*/
 void main(int32_t argc, char* argv[])
 {
     // カレントディレクトリをexeがあるパスにする
@@ -512,14 +434,11 @@ void main(int32_t argc, char* argv[])
     SetCurrentDirectory(binFilePath);
 
     // テキストのパス
-    char txtPath[MAX_PATH];
-    GetPrivateProfileString("config", "txtdir", "", txtPath, sizeof(txtPath) / sizeof(*txtPath), "./today.ini");
-    g_txtPath = txtPath;
-    printf("txt path [%s]\n", txtPath);
+    g_txtPath = configString("config", "txtdir", "");
+    printf("txt path [%s]\n", g_txtPath.c_str());
 
-    char sakuraPath[MAX_PATH];
-    GetPrivateProfileString("config", "sakuraPath", "", sakuraPath, sizeof(sakuraPath) / sizeof(*sakuraPath), "./today.ini");
-    g_sakuraPath = sakuraPath;
+    // sakuraのパス
+    g_sakuraPath = configString("config", "sakuraPath", "");
     printf("sakura path [%s]\n", g_sakuraPath.c_str());
 
     // コマンドが指定されていなければ今日のファイルを作成する
@@ -534,10 +453,6 @@ void main(int32_t argc, char* argv[])
     g_commands.emplace_back(std::make_shared<CommandToday>());
     g_commands.emplace_back(std::make_shared<CommandPrev>());
     g_commands.emplace_back(std::make_shared<CommandGoto>());
-    g_commands.emplace_back(std::make_shared<CommandTodo>());
-    g_commands.emplace_back(std::make_shared<CommandDone>());
-    g_commands.emplace_back(std::make_shared<CommandMemo>());
-    g_commands.emplace_back(std::make_shared<CommandTime>());
     g_commands.emplace_back(std::make_shared<CommandGC>());
     g_commands.emplace_back(std::make_shared<CommandGrep>());
     g_commands.emplace_back(std::make_shared<CommandOpen>());
@@ -554,5 +469,22 @@ void main(int32_t argc, char* argv[])
             return;
         }
     }
+
+    // プリセットのコマンドになければカスタムされたコマンド
+    const std::string customCmd = configString("custom", cmd, "");
+    if (customCmd != "")
+    {
+        if (customCmd == "month")
+        {
+            openMonthFile(cmd);
+        }
+        else
+        {
+            printf("invalid custom command.\n");
+        }
+        return;
+    }
+
+    //
     printf("invalid command.\n");
 }
