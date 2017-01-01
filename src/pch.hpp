@@ -11,6 +11,8 @@
 #include <string>
 #include <sstream>
 #include <memory>
+#include <iostream>
+#include <iomanip>
 
 //
 #include <windows.h>

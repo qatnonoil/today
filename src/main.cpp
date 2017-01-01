@@ -36,13 +36,13 @@ public:
     std::string toStringYYYYMMDD() const
     {
         std::stringstream ss;
-        ss << year() << "_" << month() << "_" << mday();
+        ss << std::setw(2) << std::setfill('0') << year() << "_" << std::setw(2) << std::setfill('0') << month() << "_" << std::setw(2) << std::setfill('0') << mday();
         return ss.str();
     }
     std::string toStringYYYYMM() const
     {
         std::stringstream ss;
-        ss << year() << "_" << month();
+        ss << std::setw(2) << std::setfill('0') << year() << "_" << std::setw(2) << std::setfill('0') << month();
         return ss.str();
     }
     std::string createFileName() const
@@ -105,12 +105,24 @@ static void openFile(const std::string& fileName)
 
 /*
 -----------------------------------------------
+月の指定があるファイルを開く
 -----------------------------------------------
 */
 static void openMonthFile(const std::string& fileName)
 {
     Date date;
     std::string fileNameFull = g_txtPath + fileName + std::string("_") + date.toStringYYYYMM() + ".txt";
+    openFile(fileNameFull);
+}
+
+/*
+-----------------------------------------------
+一意なファイル名を持つファイルを開く
+-----------------------------------------------
+*/
+static void openUniqueFile(const std::string& fileName)
+{
+    std::string fileNameFull = g_txtPath + fileName + ".txt";
     openFile(fileNameFull);
 }
 
@@ -477,6 +489,10 @@ void main(int32_t argc, char* argv[])
         if (customCmd == "month")
         {
             openMonthFile(cmd);
+        }
+        else if (customCmd == "unique")
+        {
+            openUniqueFile(cmd);
         }
         else
         {
