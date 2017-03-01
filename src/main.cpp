@@ -33,6 +33,10 @@ public:
     {
         return t_->tm_mday;
     }
+    int32_t weekDay() const
+    {
+        return t_->tm_wday;
+    }
     std::string toStringYYYYMMDD() const
     {
         std::stringstream ss;
@@ -89,14 +93,14 @@ FileStat fileStat(const std::string& fileName)
 -----------------------------------------------
 -----------------------------------------------
 */
-static void openFile(const std::string& fileName)
+static void openFile(const std::string& fileName, const std::string& appendStr = "")
 {
     //
     if (!fileStat(fileName).exist)
     {
-        // ファイルを生成する
-        const std::string command = std::string("type nul > ") + fileName;
-        system(command.c_str());
+        std::ofstream file;
+        file.open(fileName);
+        file << appendStr;
     }
     // ファイルを開く
     const std::string command = "START " + fileName;
@@ -111,7 +115,7 @@ static void openFile(const std::string& fileName)
 static void openMonthFile(const std::string& fileName)
 {
     Date date;
-    std::string fileNameFull = g_txtPath + fileName + std::string("_") + date.toStringYYYYMM() + ".txt";
+    std::string fileNameFull = g_txtPath + date.toStringYYYYMM() + std::string("_") + fileName + ".txt";
     openFile(fileNameFull);
 }
 
@@ -177,8 +181,42 @@ public:
         // 今日の日付を得る
         Date date(0);
         const std::string fileName = date.createFileName();
+        // テンプレートファイルの文字列を得る
+        const std::string templateStr = templateString(date);
+
         // ファイルを開く
-        openFile(fileName);
+        openFile(fileName, templateStr);
+    }
+    std::string readFileAll(const std::string& fileName)
+    {
+        std::ifstream file(fileName.c_str());;
+        std::istreambuf_iterator<char> it(file);
+        std::istreambuf_iterator<char> last;
+        std::string str(it, last);
+        return str;
+    }
+    std::string templateString(const Date& date)
+    {
+        // 曜日テキスト
+        const std::array<const char*,7> wdayStr =
+        {
+            "日曜",
+            "月曜",
+            "火曜",
+            "水曜",
+            "木曜",
+            "金曜",
+            "土曜"
+        };
+        const std::string wdayFileName = std::string("template/") + wdayStr[date.weekDay()] + ".md";
+        std::string wdayTxt = readFileAll(g_txtPath + wdayFileName);
+
+        // 日付テキスト
+        const std::string mdayFileName = std::string("template/") + std::to_string(date.mday()) + "日.md";
+        std::string mdayTxt = readFileAll(g_txtPath + mdayFileName);
+
+        // 全てのテキストを返す
+        return wdayTxt + mdayTxt;
     }
 };
 
