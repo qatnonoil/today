@@ -225,6 +225,19 @@ static std::vector<std::string> getFileList(const std::string& folderPath)
 
 /*
 -----------------------------------------------
+指定した日のファイルを開く
+-----------------------------------------------
+*/
+static void openDateFile(const Date& date)
+{
+    //
+    const std::string fileName = date.createFileName();
+    // ファイルを開く
+    openFile(fileName, templateString(date));
+}
+
+/*
+-----------------------------------------------
 system()代替。起動後すぐ戻る。
 -----------------------------------------------
 */
@@ -271,11 +284,8 @@ public:
     }
     virtual void exec(int32_t argc, char* argv[]) override
     {
-        // 今日の日付を得る
-        Date date(0);
-        const std::string fileName = date.createFileName();
-        // ファイルを開く
-        openFile(fileName, templateString(date));
+        // 今日のdateファイルを開く
+        openDateFile(Date(0));
     }
 };
 
@@ -316,7 +326,7 @@ public:
                 break;
             }
             // ファイルを開く
-            openFile(date.createFileName(), templateString(date));
+            openDateFile(date);
         }
     }
 };
@@ -354,9 +364,8 @@ public:
         {
             return;
         }
-        Date date(dayDiff);
         // ファイルを開く
-        openFile(date.createFileName(), templateString(date));
+        openDateFile(Date(dayDiff));
     }
 };
 
