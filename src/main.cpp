@@ -15,27 +15,27 @@ public:
     // 負の数を指定すれば前の日になる。
     Date(int32_t dayDif = 0)
     {
-        time_t rawTime;
-        time(&rawTime);
-        t_ = localtime(&rawTime);
-        t_->tm_mday += dayDif;
-        mktime(t_);
+        const time_t rawTime = time(nullptr);
+        localtime_s(&t_, &rawTime);
+        //
+        t_.tm_mday += dayDif;
+        mktime(&t_);
     }
     int32_t year() const
     {
-        return t_->tm_year + 1900;
+        return t_.tm_year + 1900;
     }
     int32_t month() const
     {
-        return t_->tm_mon + 1;
+        return t_.tm_mon + 1;
     }
     int32_t mday() const
     {
-        return t_->tm_mday;
+        return t_.tm_mday;
     }
     int32_t weekDay() const
     {
-        return t_->tm_wday;
+        return t_.tm_wday;
     }
     std::string toStringYYYYMMDD() const
     {
@@ -60,7 +60,7 @@ public:
         return fileName;
     }
 private:
-    tm* t_;
+    tm t_;
 };
 
 /*
@@ -132,6 +132,99 @@ static void openUniqueFile(const std::string& fileName)
 
 /*
 -----------------------------------------------
+指定したファイルの内容全てをロードして文字列として返す
+-----------------------------------------------
+*/
+static std::string readFileAll(const std::string& fileName)
+{
+    std::ifstream file(fileName.c_str());;
+    std::istreambuf_iterator<char> it(file);
+    std::istreambuf_iterator<char> last;
+    std::string str(it, last);
+    return str;
+}
+
+/*
+-----------------------------------------------
+指定した日のtemplateファイルのテキストを返す
+-----------------------------------------------
+*/
+static std::string templateString(const Date& date)
+{
+    // 毎日テキスト
+    const std::string everydayFileName = std::string("template/毎日.md");
+    const std::string everydayTxt = readFileAll(g_txtPath + everydayFileName);
+
+    // 曜日テキスト
+    const std::array<const char*, 7> wdayStr =
+    {
+        "日曜",
+        "月曜",
+        "火曜",
+        "水曜",
+        "木曜",
+        "金曜",
+        "土曜"
+    };
+    const std::string wdayFileName = std::string("template/") + wdayStr[date.weekDay()] + ".md";
+    const std::string wdayTxt = readFileAll(g_txtPath + wdayFileName);
+
+    // 日付テキスト
+    const std::string mdayFileName = std::string("template/") + std::to_string(date.mday()) + "日.md";
+    const std::string mdayTxt = readFileAll(g_txtPath + mdayFileName);
+
+    // 全てのテキストを返す
+    return everydayTxt + wdayTxt + mdayTxt;
+}
+
+/*
+-----------------------------------------------
+指定したフォルダ以下の全てのファイルを列挙する
+-----------------------------------------------
+*/
+static std::vector<std::string> getFileList(const std::string& folderPath)
+{
+    HANDLE hFind;
+    WIN32_FIND_DATA fd;
+    const std::string folderPathWithWild = folderPath + "*.*";
+    hFind = FindFirstFile(folderPathWithWild.c_str(), &fd);
+    std::vector<std::string> fileList;
+
+    if (hFind == INVALID_HANDLE_VALUE)
+    {
+        return fileList;
+    }
+    //
+    do
+    {
+        const bool isFolder = (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+        // フォルダーの場合
+        if (isFolder)
+        {
+            const bool invalidPath =
+                (strcmp(fd.cFileName, ".") == 0) ||
+                (strcmp(fd.cFileName, "..") == 0);
+            if (!invalidPath)
+            {
+                const std::string subFolderPath = std::string(fd.cFileName) + "\\";
+                auto subFolderList = getFileList(subFolderPath);
+                fileList.insert(fileList.end(), subFolderList.begin(), subFolderList.end());
+            }
+        }
+        // ファイルの場合
+        else
+        {
+            fileList.push_back(folderPath + fd.cFileName);
+        }
+    } while (FindNextFile(hFind, &fd));
+
+    FindClose(hFind);
+
+    return fileList;
+}
+
+/*
+-----------------------------------------------
 system()代替。起動後すぐ戻る。
 -----------------------------------------------
 */
@@ -181,42 +274,8 @@ public:
         // 今日の日付を得る
         Date date(0);
         const std::string fileName = date.createFileName();
-        // テンプレートファイルの文字列を得る
-        const std::string templateStr = templateString(date);
-
         // ファイルを開く
-        openFile(fileName, templateStr);
-    }
-    std::string readFileAll(const std::string& fileName)
-    {
-        std::ifstream file(fileName.c_str());;
-        std::istreambuf_iterator<char> it(file);
-        std::istreambuf_iterator<char> last;
-        std::string str(it, last);
-        return str;
-    }
-    std::string templateString(const Date& date)
-    {
-        // 曜日テキスト
-        const std::array<const char*,7> wdayStr =
-        {
-            "日曜",
-            "月曜",
-            "火曜",
-            "水曜",
-            "木曜",
-            "金曜",
-            "土曜"
-        };
-        const std::string wdayFileName = std::string("template/") + wdayStr[date.weekDay()] + ".md";
-        std::string wdayTxt = readFileAll(g_txtPath + wdayFileName);
-
-        // 日付テキスト
-        const std::string mdayFileName = std::string("template/") + std::to_string(date.mday()) + "日.md";
-        std::string mdayTxt = readFileAll(g_txtPath + mdayFileName);
-
-        // 全てのテキストを返す
-        return wdayTxt + mdayTxt;
+        openFile(fileName, templateString(date));
     }
 };
 
@@ -257,7 +316,7 @@ public:
                 break;
             }
             // ファイルを開く
-            openFile(date.createFileName());
+            openFile(date.createFileName(), templateString(date));
         }
     }
 };
@@ -291,52 +350,13 @@ public:
         today goto -3
         */
         int32_t dayDiff = 0;
-        if (sscanf(argv[2], "%d", &dayDiff) != 1)
+        if (sscanf_s(argv[2], "%d", &dayDiff) != 1)
         {
             return;
         }
         Date date(dayDiff);
         // ファイルを開く
-        openFile(date.createFileName());
-    }
-};
-
-/*
------------------------------------------------
-空のファイルを削除する
------------------------------------------------
-*/
-class CommandGC
-    :public Command
-{
-public:
-    CommandGC() {}
-    virtual std::string name() override
-    {
-        return "gc";
-    }
-    virtual std::string description() override
-    {
-        return "delete empty today file.";
-    }
-    virtual void exec(int32_t argc, char* argv[]) override
-    {
-        // 日付の差分を得る
-        int32_t dayDiff = 0;
-        // HACK: とりあえず三か月前まで。
-        const int32_t dayDiffLimit = -90;
-        for (int32_t i = 0; i > dayDiffLimit; --i)
-        {
-            Date date(i);
-            const FileStat fs = fileStat(date.createFileName());
-            // ファイルが存在し、サイズが0kbであるならば削除
-            if (fs.exist && fs.fileSize == 0)
-            {
-                printf("delete %s\n", date.createFileName().c_str());
-                std::string command = "del " + date.createFileName();
-                system(command.c_str());
-            }
-        }
+        openFile(date.createFileName(), templateString(date));
     }
 };
 
@@ -491,6 +511,17 @@ void main(int32_t argc, char* argv[])
     g_sakuraPath = configString("config", "sakuraPath", "");
     printf("sakura path [%s]\n", g_sakuraPath.c_str());
 
+    // 指定テキストフォルダ以下で空のファイルは全て削除する
+    for (auto& path : getFileList(g_txtPath))
+    {
+        const FileStat stat = fileStat(path);
+        if (stat.exist && 
+            stat.fileSize == 0)
+        {
+            DeleteFile(path.c_str());
+        }
+    }
+
     // コマンドが指定されていなければ今日のファイルを作成する
     if (argc == 1)
     {
@@ -503,7 +534,6 @@ void main(int32_t argc, char* argv[])
     g_commands.emplace_back(std::make_shared<CommandToday>());
     g_commands.emplace_back(std::make_shared<CommandPrev>());
     g_commands.emplace_back(std::make_shared<CommandGoto>());
-    g_commands.emplace_back(std::make_shared<CommandGC>());
     g_commands.emplace_back(std::make_shared<CommandGrep>());
     g_commands.emplace_back(std::make_shared<CommandOpen>());
     g_commands.emplace_back(std::make_shared<CommandHelp>());
