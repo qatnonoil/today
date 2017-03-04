@@ -434,6 +434,36 @@ public:
 
 /*
 -----------------------------------------------
+@のカウントをする
+-----------------------------------------------
+*/
+class CommandAt
+    :public Command
+{
+public:
+    CommandAt() {}
+    virtual std::string name() override
+    {
+        return "@";
+    }
+    virtual std::string description() override
+    {
+        return "count @ num.";
+    }
+    virtual void exec(int32_t argc, char* argv[]) override
+    {
+        // todayファイルのテキストに含まれる"@"の数をカウントする
+        const std::string todayTextPath = Date(0).createFileName();
+        const std::string text = readFileAll(todayTextPath);
+        const size_t numAt = std::count_if(text.begin(), text.end(), [](char ch) { return ch == '@'; });
+        const float totalTimeInHour = float(numAt) * 0.5f;
+        printf("%2.1f hour(@ %zd)\n", totalTimeInHour, numAt);
+        getchar();
+    }
+};
+
+/*
+-----------------------------------------------
 ヘルプを表示する
 -----------------------------------------------
 */
@@ -545,6 +575,7 @@ void main(int32_t argc, char* argv[])
     g_commands.emplace_back(std::make_shared<CommandGoto>());
     g_commands.emplace_back(std::make_shared<CommandGrep>());
     g_commands.emplace_back(std::make_shared<CommandOpen>());
+    g_commands.emplace_back(std::make_shared<CommandAt>());
     g_commands.emplace_back(std::make_shared<CommandHelp>());
     g_commands.emplace_back(std::make_shared<CommandVersion>());
     const std::string cmd = std::string(argv[1]);
