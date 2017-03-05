@@ -115,7 +115,7 @@ static void openFile(const std::string& fileName, const std::string& appendStr =
 static void openMonthFile(const std::string& fileName)
 {
     Date date;
-    std::string fileNameFull = g_txtPath + date.toStringYYYYMM() + std::string("_") + fileName + ".txt";
+    std::string fileNameFull = g_txtPath + "shelf/" +date.toStringYYYYMM() + std::string("_") + fileName + ".txt";
     openFile(fileNameFull);
 }
 
@@ -126,7 +126,7 @@ static void openMonthFile(const std::string& fileName)
 */
 static void openUniqueFile(const std::string& fileName)
 {
-    std::string fileNameFull = g_txtPath + fileName + ".txt";
+    std::string fileNameFull = g_txtPath + "shelf/" + fileName + ".txt";
     openFile(fileNameFull);
 }
 
