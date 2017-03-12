@@ -206,7 +206,7 @@ static std::vector<std::string> getFileList(const std::string& folderPath)
                 (strcmp(fd.cFileName, "..") == 0);
             if (!invalidPath)
             {
-                const std::string subFolderPath = std::string(fd.cFileName) + "\\";
+                const std::string subFolderPath = folderPath + std::string(fd.cFileName) + "\\";
                 auto subFolderList = getFileList(subFolderPath);
                 fileList.insert(fileList.end(), subFolderList.begin(), subFolderList.end());
             }
