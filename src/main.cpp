@@ -21,6 +21,20 @@ public:
         t_.tm_mday += dayDif;
         mktime(&t_);
     }
+    // 日付直接指定
+    Date(int32_t month, int32_t mday)
+    {
+        const time_t rawTime = time(nullptr);
+        localtime_s(&t_, &rawTime);
+        // 今年のその日が終わっていたら来年扱い
+        if ((month < t_.tm_mon) || (t_.tm_mon == month && mday < t_.tm_mday ))
+        {
+            ++t_.tm_year;
+        }
+        //
+        t_.tm_mon = month-1;
+        t_.tm_mday = mday;
+    }
     int32_t year() const
     {
         return t_.tm_year + 1900;
@@ -60,7 +74,7 @@ public:
         return fileName;
     }
 private:
-    tm t_;
+    tm t_ = {};
 };
 
 /*
@@ -225,6 +239,16 @@ static std::vector<std::string> getFileList(const std::string& folderPath)
 
 /*
 -----------------------------------------------
+全てのテキストのリストを返す
+-----------------------------------------------
+*/
+static std::vector<std::string> getAllTextFileList()
+{
+    return getFileList(g_txtPath);
+}
+
+/*
+-----------------------------------------------
 指定した日のファイルを開く
 -----------------------------------------------
 */
@@ -284,6 +308,7 @@ public:
     }
     virtual void exec(int32_t argc, char* argv[]) override
     {
+        squashPreviousDateFile(Date(0));
         // 今日のdateファイルを開く
         openDateFile(Date(0));
     }
@@ -356,16 +381,27 @@ public:
             return;
         }
         /*
+        today goto 01/01
+        today goto 1/1
+        today goto 12/31
+        */
+        int32_t month, mday;
+        if (sscanf_s(argv[2], "%d/%d", &month, &mday) == 2)
+        {
+            openDateFile(Date(month, mday));
+            return;
+        }
+        /*
         today goto +3
         today goto -3
         */
         int32_t dayDiff = 0;
-        if (sscanf_s(argv[2], "%d", &dayDiff) != 1)
+        if (sscanf_s(argv[2], "%d", &dayDiff) == 1)
         {
+            // ファイルを開く
+            openDateFile(Date(dayDiff));
             return;
         }
-        // ファイルを開く
-        openDateFile(Date(dayDiff));
     }
 };
 
@@ -551,13 +587,25 @@ void main(int32_t argc, char* argv[])
     printf("sakura path [%s]\n", g_sakuraPath.c_str());
 
     // 指定テキストフォルダ以下で空のファイルは全て削除する
-    for (auto& path : getFileList(g_txtPath))
+    for (auto& path : getAllTextFileList())
     {
         const FileStat stat = fileStat(path);
         if (stat.exist && 
             stat.fileSize == 0)
         {
             DeleteFile(path.c_str());
+        }
+    }
+
+    {
+        // 今日のバックアップが存在しなければバックアップを作成する
+        const std::string todayBackupFileName = g_txtPath + "backup\\" + Date(0).toStringYYYYMMDD() + ".zip";
+        const FileStat stat = fileStat(todayBackupFileName);
+        if (!stat.exist)
+        {
+            // "7za a [zipファイルパス] [zip元フォルダ] -xr!backup"
+            const std::string command = "7za a " + todayBackupFileName + " " + g_txtPath + " -xr!backup";
+            system(command.c_str());
         }
     }
 
