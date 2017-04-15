@@ -308,7 +308,6 @@ public:
     }
     virtual void exec(int32_t argc, char* argv[]) override
     {
-        squashPreviousDateFile(Date(0));
         // 今日のdateファイルを開く
         openDateFile(Date(0));
     }
