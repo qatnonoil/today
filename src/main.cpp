@@ -424,7 +424,7 @@ public:
     }
     virtual void exec(int32_t argc, char* argv[]) override
     {
-        //sakura.exe -GREPMODE -GFOLDER="C:\Users\admin\Dropbox\today" - GKEY = "床" - GOPT = P
+        //sakura.exe -GREPMODE -GFOLDER="C:\Users\admin\Dropbox\today" -GKEY="Keyword" -GOPT=P -TYPE=txt,md
         if (argc <= 2)
         {
             printf("no grep keyword.");
@@ -435,7 +435,7 @@ public:
         // sakuraの起動
         const std::string command =
             "\"" + g_sakuraPath + "\" -GREPMODE -GFOLDER=" + g_txtPath +
-            " -GKEY=\"" + std::string(key) + "\"  -GOPT=PS -GCODE=99\"";
+            " -GKEY=\"" + std::string(key) + "\"  -GOPT=PS -GCODE=99 -GFILE=*.txt,*.md";
         printf("cmd %s\n", command.c_str());
         doCommand(command);
     }
