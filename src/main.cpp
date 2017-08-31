@@ -63,6 +63,12 @@ public:
         ss << std::setw(2) << std::setfill('0') << year() << "_" << std::setw(2) << std::setfill('0') << month();
         return ss.str();
     }
+    std::string toStringYYYY() const
+    {
+        std::stringstream ss;
+        ss << std::setw(2) << std::setfill('0') << year();
+        return ss.str();
+    }
     std::string createFileName() const
     {
         std::string fileName = g_txtPath + toStringYYYYMMDD() + ".txt";
@@ -107,11 +113,16 @@ FileStat fileStat(const std::string& fileName)
 -----------------------------------------------
 -----------------------------------------------
 */
-static void openFile(const std::string& fileName, const std::string& appendStr = "")
+static void openFile(const std::string& fileName, bool forceCreate, const std::string& appendStr = "")
 {
     //
     if (!fileStat(fileName).exist)
     {
+        // 存在しなければ開かなくていい場合はこのまま終了
+        if (!forceCreate)
+        {
+            return;
+        }
         std::ofstream file;
         file.open(fileName);
         file << appendStr;
@@ -130,7 +141,19 @@ static void openMonthFile(const std::string& fileName)
 {
     Date date;
     std::string fileNameFull = g_txtPath + "shelf/" +date.toStringYYYYMM() + std::string("_") + fileName + ".txt";
-    openFile(fileNameFull);
+    openFile(fileNameFull, true);
+}
+
+/*
+-----------------------------------------------
+年の指定があるファイルを開く
+-----------------------------------------------
+*/
+static void openYearFile(const std::string& fileName )
+{
+    Date date;
+    std::string fileNameFull = g_txtPath + "shelf/" + date.toStringYYYY() + std::string("_") + fileName + ".txt";
+    openFile(fileNameFull, true);
 }
 
 /*
@@ -141,7 +164,7 @@ static void openMonthFile(const std::string& fileName)
 static void openUniqueFile(const std::string& fileName)
 {
     std::string fileNameFull = g_txtPath + "shelf/" + fileName + ".txt";
-    openFile(fileNameFull);
+    openFile(fileNameFull, true);
 }
 
 /*
@@ -252,12 +275,12 @@ static std::vector<std::string> getAllTextFileList()
 指定した日のファイルを開く
 -----------------------------------------------
 */
-static void openDateFile(const Date& date)
+static void openDateFile(const Date& date, bool forceCreate)
 {
     //
     const std::string fileName = date.createFileName();
     // ファイルを開く
-    openFile(fileName, templateString(date));
+    openFile(fileName, forceCreate, templateString(date));
 }
 
 /*
@@ -309,7 +332,35 @@ public:
     virtual void exec(int32_t argc, char* argv[]) override
     {
         // 今日のdateファイルを開く
-        openDateFile(Date(0));
+        openDateFile(Date(0), true);
+    }
+};
+
+/*
+-----------------------------------------------
+全てのファイルを開く(実際は前後30日のファイルを開く)
+-----------------------------------------------
+*/
+class CommandAll
+    :public Command
+{
+public:
+    CommandAll() {}
+    virtual std::string name() override
+    {
+        return "all";
+    }
+    virtual std::string description() override
+    {
+        return "open all today file.";
+    }
+    virtual void exec(int32_t argc, char* argv[]) override
+    {
+        // 前後30日のファイルを全て開く
+        for (int32_t i=-30;i<=30;++i)
+        {
+            openDateFile(Date(i), false);
+        }
     }
 };
 
@@ -350,7 +401,7 @@ public:
                 break;
             }
             // ファイルを開く
-            openDateFile(date);
+            openDateFile(date, false);
         }
     }
 };
@@ -387,7 +438,7 @@ public:
         int32_t month, mday;
         if (sscanf_s(argv[2], "%d/%d", &month, &mday) == 2)
         {
-            openDateFile(Date(month, mday));
+            openDateFile(Date(month, mday), true);
             return;
         }
         /*
@@ -398,7 +449,7 @@ public:
         if (sscanf_s(argv[2], "%d", &dayDiff) == 1)
         {
             // ファイルを開く
-            openDateFile(Date(dayDiff));
+            openDateFile(Date(dayDiff), true);
             return;
         }
     }
@@ -590,6 +641,7 @@ void main(int32_t argc, char* argv[])
     g_commands.emplace_back(std::make_shared<CommandToday>());
     g_commands.emplace_back(std::make_shared<CommandPrev>());
     g_commands.emplace_back(std::make_shared<CommandGoto>());
+    g_commands.emplace_back(std::make_shared<CommandAll>());
     g_commands.emplace_back(std::make_shared<CommandGrep>());
     g_commands.emplace_back(std::make_shared<CommandOpen>());
     g_commands.emplace_back(std::make_shared<CommandHelp>());
@@ -613,6 +665,10 @@ void main(int32_t argc, char* argv[])
         if (customCmd == "month")
         {
             openMonthFile(cmd);
+        }
+        else if (customCmd == "year")
+        {
+            openYearFile(cmd);
         }
         else if (customCmd == "unique")
         {
