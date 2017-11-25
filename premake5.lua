@@ -7,10 +7,8 @@ project "td"
    kind "ConsoleApp"
    language "C++"
    targetdir "generated/bin/%{cfg.buildcfg}"
-   pchsource "src/pch.cpp"
-   pchheader "pch.hpp"
    includedirs { "src" }
-   files { "src/pch.cpp", "src/**.hpp", "src/**.cpp" }
+   files { "main.cpp" }
    characterset "MBCS"
 
    filter "configurations:Debug"
