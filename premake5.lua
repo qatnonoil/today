@@ -8,12 +8,16 @@ project "td"
    language "C++"
    targetdir "generated/bin/%{cfg.buildcfg}"
    includedirs { "src" }
-   files { "main.cpp" }
+   files { "main.cpp", "premake.lua" }
    characterset "MBCS"
+
+   filter { "system:macosx", "language:C++" }
+     buildoptions "-std=c++11 -stdlib=libc++"
+     linkoptions "-stdlib=libc++"
 
    filter "configurations:Debug"
       defines { "DEBUG" }
-      flags { "Symbols" }
+      symbols "On"
 
    filter "configurations:Release"
       defines { "NDEBUG" }
