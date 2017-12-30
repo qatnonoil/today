@@ -1,12 +1,23 @@
-﻿// C
+#if defined(_MSC_VER)
+#define WINDOWS
+#else
+#define CLANG
+#endif
+
+//
+#define _CRT_SECURE_NO_WARNINGS
+
+// C
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>
 #include <ctime>
+#include <cassert>
 
 // C++
 #include <array>
 #include <vector>
+#include <unordered_map>
 #include <string>
 #include <sstream>
 #include <memory>
@@ -15,20 +26,46 @@
 #include <fstream>
 
 //
+#if defined(WINDOWS)
 #include <windows.h>
 #include <Shlwapi.h>
 #pragma comment(lib,"winmm.lib")
 #pragma comment(lib,"Shlwapi.lib")
+#endif
 
+#if defined(CLANG)
+#include <unistd.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#endif
 
 std::string g_txtPath;
 std::string g_sakuraPath;
 
 /*
------------------------------------------------
-日付回り
------------------------------------------------
-*/
+ -----------------------------------------------
+ system()代替。起動後すぐ戻る。
+ -----------------------------------------------
+ */
+static void doCommand(const std::string& command)
+{
+#if defined(WINDOWS)
+    PROCESS_INFORMATION pi = { 0 };
+    STARTUPINFO si = { sizeof(STARTUPINFO) };
+    CreateProcess(
+                  nullptr, const_cast<char*>(command.c_str()),
+                  nullptr, nullptr, FALSE, NORMAL_PRIORITY_CLASS,
+                  nullptr, nullptr, &si, &pi);
+#else
+    system(command.c_str());
+#endif
+}
+
+/*
+ -----------------------------------------------
+ 日付回り
+ -----------------------------------------------
+ */
 struct Date
 {
 public:
@@ -37,7 +74,11 @@ public:
     Date(int32_t dayDif = 0)
     {
         const time_t rawTime = time(nullptr);
+#if defined(WINDOWS)
         localtime_s(&t_, &rawTime);
+#else
+        t_ = *localtime(&rawTime);
+#endif
         //
         t_.tm_mday += dayDif;
         mktime(&t_);
@@ -46,7 +87,11 @@ public:
     Date(int32_t month, int32_t mday)
     {
         const time_t rawTime = time(nullptr);
+#if defined(WINDOWS)
         localtime_s(&t_, &rawTime);
+#else
+        t_ = *localtime(&rawTime);
+#endif
         // 今年のその日が終わっていたら来年扱い
         if ((month < t_.tm_mon) || (t_.tm_mon == month && mday < t_.tm_mday ))
         {
@@ -105,9 +150,9 @@ private:
 };
 
 /*
------------------------------------------------
------------------------------------------------
-*/
+ -----------------------------------------------
+ -----------------------------------------------
+ */
 struct FileStat
 {
     bool exist = false;
@@ -115,15 +160,20 @@ struct FileStat
 };
 
 /*
------------------------------------------------
-ファイルが存在するか
------------------------------------------------
-*/
+ -----------------------------------------------
+ ファイルが存在するか
+ -----------------------------------------------
+ */
 FileStat fileStat(const std::string& fileName)
 {
+#if defined(WINDOWS)
     //
     struct _stat s;
     const bool fileExist = (_stat(fileName.c_str(), &s) == 0);
+#else
+    struct stat s;
+    const bool fileExist = (stat(fileName.c_str(), &s) == 0);
+#endif
     FileStat fs;
     fs.exist = fileExist;
     fs.fileSize = s.st_size;
@@ -131,10 +181,91 @@ FileStat fileStat(const std::string& fileName)
 }
 
 /*
------------------------------------------------
------------------------------------------------
-*/
-static void openFile(const std::string& fileName, bool forceCreate, const std::string& appendStr = "")
+ -----------------------------------------------
+ IniFile
+ -----------------------------------------------
+ */
+class IniFile
+{
+public:
+    IniFile(const std::string& fileName)
+    {
+        // ファイルを開く
+        FILE* file = fopen(fileName.c_str(), "rt");
+        if (file == nullptr)
+        {
+            return;
+        }
+        //
+        typedef Regions::iterator RegsIte;
+        RegsIte regsIte;
+        regions.insert({ std::string(""), Configs() });
+        regsIte = regions.find(std::string(""));
+        // 全ての行を読み取っていく
+        char buffer[0xff];
+        while (fgets(buffer, 0xff, file) != nullptr)
+        {
+            // Regionの開始
+            char regionName[0xff];
+            char key[0xff];
+            char value[0xff];
+            if (sscanf(buffer, "[%[^]]", regionName) == 1)
+            {
+                regions.insert({ std::string(regionName), Configs() });
+                regsIte = regions.find(std::string(regionName));
+            }
+            // 「A="B"」の形式
+            else if (sscanf(buffer, "%[^=]=\"%[^\"]\"", key, value) == 2)
+            {
+                Configs& configs = regsIte->second;
+                configs.insert(std::make_pair<>(std::string(key), std::string(value)));
+            }
+            else if(strcmp(buffer,"\n") == 0 )
+            {
+                // 何もしない
+            }
+            else
+            {
+                printf("IniFile parse error.\n");
+            }
+        }
+        //
+        fclose(file);
+    }
+    std::string get(const std::string& region, const std::string& key, const std::string& defalutValue)
+    {
+        //
+        auto regionIte = regions.find(region);
+        if (regionIte == regions.end())
+        {
+            return defalutValue;
+        }
+        //
+        Configs& configs = regionIte->second;
+        auto configIte = configs.find(key);
+        if (configIte == configs.end())
+        {
+            return defalutValue;
+        }
+        else
+        {
+            return configIte->second;
+        }
+    }
+private:
+    typedef std::unordered_map<std::string, std::string> Configs;
+    typedef std::unordered_map<std::string, Configs> Regions;
+    Regions regions;
+};
+
+
+/*
+ -----------------------------------------------
+ -----------------------------------------------
+ */
+static void openFile(const std::string& fileName,
+                     bool forceCreate,
+                     const std::string& appendStr = "")
 {
     //
     if (!fileStat(fileName).exist)
@@ -144,20 +275,28 @@ static void openFile(const std::string& fileName, bool forceCreate, const std::s
         {
             return;
         }
+#if defined(CLANG)
+        const std::string command = "touch " + fileName;
+        doCommand(command.c_str());
+#endif
         std::ofstream file;
         file.open(fileName);
         file << appendStr;
     }
     // ファイルを開く
+#if defined(WINDOWS)
     const std::string command = "START " + fileName;
-    system(command.c_str());
+#else
+    const std::string command = "open " + fileName;
+#endif
+    doCommand(command.c_str());
 }
 
 /*
------------------------------------------------
-月の指定があるファイルを開く
------------------------------------------------
-*/
+ -----------------------------------------------
+ 月の指定があるファイルを開く
+ -----------------------------------------------
+ */
 static void openMonthFile(const std::string& fileName)
 {
     Date date;
@@ -166,10 +305,10 @@ static void openMonthFile(const std::string& fileName)
 }
 
 /*
------------------------------------------------
-年の指定があるファイルを開く
------------------------------------------------
-*/
+ -----------------------------------------------
+ 年の指定があるファイルを開く
+ -----------------------------------------------
+ */
 static void openYearFile(const std::string& fileName )
 {
     Date date;
@@ -178,10 +317,10 @@ static void openYearFile(const std::string& fileName )
 }
 
 /*
------------------------------------------------
-一意なファイル名を持つファイルを開く
------------------------------------------------
-*/
+ -----------------------------------------------
+ 一意なファイル名を持つファイルを開く
+ -----------------------------------------------
+ */
 static void openUniqueFile(const std::string& fileName)
 {
     std::string fileNameFull = g_txtPath + "shelf/" + fileName + ".txt";
@@ -189,10 +328,10 @@ static void openUniqueFile(const std::string& fileName)
 }
 
 /*
------------------------------------------------
-指定したファイルの内容全てをロードして文字列として返す
------------------------------------------------
-*/
+ -----------------------------------------------
+ 指定したファイルの内容全てをロードして文字列として返す
+ -----------------------------------------------
+ */
 static std::string readFileAll(const std::string& fileName)
 {
     std::ifstream file(fileName.c_str());;
@@ -203,16 +342,16 @@ static std::string readFileAll(const std::string& fileName)
 }
 
 /*
------------------------------------------------
-指定した日のtemplateファイルのテキストを返す
------------------------------------------------
-*/
+ -----------------------------------------------
+ 指定した日のtemplateファイルのテキストを返す
+ -----------------------------------------------
+ */
 static std::string templateString(const Date& date)
 {
     // 毎日テキスト
     const std::string everydayFileName = std::string("template/毎日.md");
     const std::string everydayTxt = readFileAll(g_txtPath + everydayFileName);
-
+    
     // 曜日テキスト
     const std::array<const char*, 7> wdayStr =
     {
@@ -226,28 +365,30 @@ static std::string templateString(const Date& date)
     };
     const std::string wdayFileName = std::string("template/") + wdayStr[date.weekDay()] + ".md";
     const std::string wdayTxt = readFileAll(g_txtPath + wdayFileName);
-
+    
     // 日付テキスト
     const std::string mdayFileName = std::string("template/") + std::to_string(date.mday()) + "日.md";
     const std::string mdayTxt = readFileAll(g_txtPath + mdayFileName);
-
+    
     // 全てのテキストを返す
     return everydayTxt + wdayTxt + mdayTxt;
 }
 
 /*
------------------------------------------------
-指定したフォルダ以下の全てのファイルを列挙する
------------------------------------------------
-*/
+ -----------------------------------------------
+ 指定したフォルダ以下の全てのファイルを列挙する
+ -----------------------------------------------
+ */
 static std::vector<std::string> getFileList(const std::string& folderPath)
 {
+    //
+    std::vector<std::string> fileList;
+    //
+#if defined(WINDOWS)
     HANDLE hFind;
     WIN32_FIND_DATA fd;
     const std::string folderPathWithWild = folderPath + "*.*";
     hFind = FindFirstFile(folderPathWithWild.c_str(), &fd);
-    std::vector<std::string> fileList;
-
     if (hFind == INVALID_HANDLE_VALUE)
     {
         return fileList;
@@ -260,8 +401,8 @@ static std::vector<std::string> getFileList(const std::string& folderPath)
         if (isFolder)
         {
             const bool invalidPath =
-                (strcmp(fd.cFileName, ".") == 0) ||
-                (strcmp(fd.cFileName, "..") == 0);
+            (strcmp(fd.cFileName, ".") == 0) ||
+            (strcmp(fd.cFileName, "..") == 0);
             if (!invalidPath)
             {
                 const std::string subFolderPath = folderPath + std::string(fd.cFileName) + "\\";
@@ -275,27 +416,62 @@ static std::vector<std::string> getFileList(const std::string& folderPath)
             fileList.push_back(folderPath + fd.cFileName);
         }
     } while (FindNextFile(hFind, &fd));
-
+    
     FindClose(hFind);
-
+    
     return fileList;
+#else
+    DIR* dir = nullptr;
+    struct dirent* ent = nullptr;
+    if ((dir = opendir (folderPath.c_str())) != nullptr)
+    {
+        while ((ent = readdir (dir)) != nullptr)
+        {
+            const bool isFolder = (ent->d_type == DT_DIR);
+            if(isFolder)
+            {
+                const bool invalidPath =
+                (strcmp(ent->d_name, ".") == 0) ||
+                (strcmp(ent->d_name, "..") == 0);
+                if (!invalidPath)
+                {
+                    const std::string subFolderPath = folderPath + std::string(ent->d_name) + "/";
+                    auto subFolderList = getFileList(subFolderPath);
+                    fileList.insert(fileList.end(), subFolderList.begin(), subFolderList.end());
+                }
+            }
+            // ファイルの場合のみ見る
+            else if(ent->d_type == DT_REG)
+            {
+                const bool invalidFile =
+                (strcmp(ent->d_name, ".DS_Store") == 0);
+                if(!invalidFile)
+                {
+                    fileList.push_back(folderPath + std::string(ent->d_name));
+                }
+            }
+        }
+        closedir (dir);
+    }
+    return fileList;
+#endif
 }
 
 /*
------------------------------------------------
-全てのテキストのリストを返す
------------------------------------------------
-*/
+ -----------------------------------------------
+ 全てのテキストのリストを返す
+ -----------------------------------------------
+ */
 static std::vector<std::string> getAllTextFileList()
 {
     return getFileList(g_txtPath);
 }
 
 /*
------------------------------------------------
-指定した日のファイルを開く
------------------------------------------------
-*/
+ -----------------------------------------------
+ 指定した日のファイルを開く
+ -----------------------------------------------
+ */
 static void openDateFile(const Date& date, bool forceCreate)
 {
     //
@@ -305,24 +481,9 @@ static void openDateFile(const Date& date, bool forceCreate)
 }
 
 /*
------------------------------------------------
-system()代替。起動後すぐ戻る。
------------------------------------------------
-*/
-static void doCommand(const std::string& command)
-{
-    PROCESS_INFORMATION pi = { 0 };
-    STARTUPINFO si = { sizeof(STARTUPINFO) };
-    CreateProcess(
-        nullptr, const_cast<char*>(command.c_str()),
-        nullptr, nullptr, FALSE, NORMAL_PRIORITY_CLASS,
-        nullptr, nullptr, &si, &pi);
-}
-
-/*
------------------------------------------------
------------------------------------------------
-*/
+ -----------------------------------------------
+ -----------------------------------------------
+ */
 class Command
 {
 public:
@@ -333,12 +494,12 @@ public:
 std::vector<std::shared_ptr<Command>> g_commands;
 
 /*
------------------------------------------------
-今日のファイルを開く
------------------------------------------------
-*/
+ -----------------------------------------------
+ 今日のファイルを開く
+ -----------------------------------------------
+ */
 class CommandToday
-    :public Command
+:public Command
 {
 public:
     CommandToday(){}
@@ -358,12 +519,12 @@ public:
 };
 
 /*
------------------------------------------------
-全てのファイルを開く(実際は前後30日のファイルを開く)
------------------------------------------------
-*/
+ -----------------------------------------------
+ 全てのファイルを開く(実際は前後30日のファイルを開く)
+ -----------------------------------------------
+ */
 class CommandAll
-    :public Command
+:public Command
 {
 public:
     CommandAll() {}
@@ -386,12 +547,12 @@ public:
 };
 
 /*
------------------------------------------------
-指定した分の前のファイルを開く
------------------------------------------------
-*/
+ -----------------------------------------------
+ 指定した分の前のファイルを開く
+ -----------------------------------------------
+ */
 class CommandPrev
-    :public Command
+:public Command
 {
 public:
     CommandPrev() {}
@@ -428,12 +589,12 @@ public:
 };
 
 /*
------------------------------------------------
-goto
------------------------------------------------
-*/
+ -----------------------------------------------
+ goto
+ -----------------------------------------------
+ */
 class CommandGoto
-    :public Command
+:public Command
 {
 public:
     CommandGoto() {}
@@ -452,22 +613,22 @@ public:
             return;
         }
         /*
-        today goto 01/01
-        today goto 1/1
-        today goto 12/31
-        */
+         today goto 01/01
+         today goto 1/1
+         today goto 12/31
+         */
         int32_t month, mday;
-        if (sscanf_s(argv[2], "%d/%d", &month, &mday) == 2)
+        if (sscanf(argv[2], "%d/%d", &month, &mday) == 2)
         {
             openDateFile(Date(month, mday), true);
             return;
         }
         /*
-        today goto +3
-        today goto -3
-        */
+         today goto +3
+         today goto -3
+         */
         int32_t dayDiff = 0;
-        if (sscanf_s(argv[2], "%d", &dayDiff) == 1)
+        if (sscanf(argv[2], "%d", &dayDiff) == 1)
         {
             // ファイルを開く
             openDateFile(Date(dayDiff), true);
@@ -477,12 +638,12 @@ public:
 };
 
 /*
------------------------------------------------
-grepの実行
------------------------------------------------
-*/
+ -----------------------------------------------
+ grepの実行
+ -----------------------------------------------
+ */
 class CommandGrep
-    :public Command
+:public Command
 {
 public:
     CommandGrep() {}
@@ -504,22 +665,31 @@ public:
         }
         // 検索文字列
         const char* key = argv[2];
+        
+#if defined(WINDOWS)
         // sakuraの起動
         const std::string command =
-            "\"" + g_sakuraPath + "\" -GREPMODE -GFOLDER=" + g_txtPath +
-            " -GKEY=\"" + std::string(key) + "\"  -GOPT=PS -GCODE=99 -GFILE=*.txt,*.md";
+        "\"" + g_sakuraPath + "\" -GREPMODE -GFOLDER=" + g_txtPath +
+        " -GKEY=\"" + std::string(key) + "\"  -GOPT=PS -GCODE=99 -GFILE=*.txt,*.md";
         printf("cmd %s\n", command.c_str());
         doCommand(command);
+#else
+        // TODO:
+        const std::string cmd = "grep -r " + std::string(key) + " " + g_txtPath;
+        printf("%s\n", cmd.c_str());
+        doCommand("pwd");
+        doCommand(cmd.c_str());
+#endif
     }
 };
 
 /*
------------------------------------------------
-todayフォルダを開く
------------------------------------------------
-*/
+ -----------------------------------------------
+ todayフォルダを開く
+ -----------------------------------------------
+ */
 class CommandOpen
-    :public Command
+:public Command
 {
 public:
     CommandOpen() {}
@@ -534,18 +704,22 @@ public:
     virtual void exec(int32_t argc, char* argv[]) override
     {
         // todayフォルダを開く
+#if defined(WINDOWS)
         const std::string command = "explorer " + g_txtPath;
+#else
+        const std::string command = std::string("open ") + g_txtPath;
+#endif
         doCommand(command.c_str());
     }
 };
 
 /*
------------------------------------------------
-ヘルプを表示する
------------------------------------------------
-*/
+ -----------------------------------------------
+ ヘルプを表示する
+ -----------------------------------------------
+ */
 class CommandHelp
-    :public Command
+:public Command
 {
 public:
     CommandHelp() {}
@@ -567,12 +741,12 @@ public:
 };
 
 /*
------------------------------------------------
-バージョンを表示する
------------------------------------------------
-*/
+ -----------------------------------------------
+ バージョンを表示する
+ -----------------------------------------------
+ */
 class CommandVersion
-    :public Command
+:public Command
 {
 public:
     CommandVersion() {}
@@ -591,71 +765,67 @@ public:
 };
 
 /*
------------------------------------------------
------------------------------------------------
-*/
-std::string configString(
-    const std::string& region,
-    const std::string& config,
-    const std::string& defaultValue)
+ -----------------------------------------------
+ 実行ファイルのあるディレクトリを返す
+ -----------------------------------------------
+ */
+static std::string getExePath(const char* arg0)
 {
-    const char* iniFile = "./today.ini";
-    char retValue[MAX_PATH];
-    GetPrivateProfileString(region.c_str(), config.c_str(), defaultValue.c_str(), retValue, sizeof(retValue) / sizeof(*retValue), iniFile);
-    std::string ret;
-    ret.assign(retValue);
-    return ret;
+    std::string aux(arg0);
+#if defined(_WIN32) || defined(WIN32)
+    size_t pos = aux.rfind('\\');
+#else
+    size_t pos = aux.rfind('/');
+#endif
+    return aux.substr(0,pos+1);
 }
 
 /*
------------------------------------------------
------------------------------------------------
-*/
-void main(int32_t argc, char* argv[])
+ -----------------------------------------------
+ -----------------------------------------------
+ */
+int32_t main(int32_t argc, char* argv[])
 {
-    // カレントディレクトリをexeがあるパスにする
-    char binFilePath[MAX_PATH];
-    ::GetModuleFileNameA(nullptr, binFilePath, sizeof(binFilePath) / sizeof(*binFilePath));
-    ::PathRemoveFileSpec(binFilePath);
-    SetCurrentDirectory(binFilePath);
-
+    // 実行ファイルのパスを取得
+    const std::string exePath = getExePath(argv[0]);
+    // IniFileを開く
+    IniFile iniFile(exePath + "today.ini");
     // テキストのパス
-    g_txtPath = configString("config", "txtdir", "");
+    g_txtPath = iniFile.get("config", "txtdir", "");
     printf("txt path [%s]\n", g_txtPath.c_str());
-
     // sakuraのパス
-    g_sakuraPath = configString("config", "sakuraPath", "");
+    g_sakuraPath = iniFile.get("config", "sakuraPath", "");
     printf("sakura path [%s]\n", g_sakuraPath.c_str());
-
     // 指定テキストフォルダ以下で空のファイルは全て削除する
     for (auto& path : getAllTextFileList())
     {
         const FileStat stat = fileStat(path);
-        if (stat.exist && 
+        if (stat.exist &&
             stat.fileSize == 0)
         {
-            DeleteFile(path.c_str());
+            printf("Delete [%s]\n", path.c_str());
+            std::remove(path.c_str());
         }
     }
-
+    
     {
         // 今日のバックアップが存在しなければバックアップを作成する
-        const std::string todayBackupFileName = g_txtPath + "backup\\" + Date(0).toStringYYYYMMDD() + ".zip";
+        const std::string todayBackupFileName = g_txtPath + "backup/" + Date(0).toStringYYYYMMDD() + ".zip";
         const FileStat stat = fileStat(todayBackupFileName);
         if (!stat.exist)
         {
             // "7za a [zipファイルパス] [zip元フォルダ] -xr!backup"
             const std::string command = "7za a " + todayBackupFileName + " " + g_txtPath + " -xr!backup";
-            system(command.c_str());
+            doCommand(command.c_str());
         }
     }
-
+    
     // コマンドが指定されていなければ今日のファイルを作成する
     if (argc == 1)
     {
         CommandToday ct;
         ct.exec(argc, argv);
-        return;
+        return 0;
     }
     // 全てのコマンドを生成する
     g_commands.clear();
@@ -675,12 +845,12 @@ void main(int32_t argc, char* argv[])
         {
             printf("%s\n", command->description().c_str());
             command->exec(argc, argv);
-            return;
+            return 0;
         }
     }
-
+    
     // プリセットのコマンドになければカスタムされたコマンド
-    const std::string customCmd = configString("custom", cmd, "");
+    const std::string customCmd = iniFile.get("custom", cmd, "");
     if (customCmd != "")
     {
         if (customCmd == "month")
@@ -699,9 +869,12 @@ void main(int32_t argc, char* argv[])
         {
             printf("invalid custom command.\n");
         }
-        return;
+        return 0;
     }
-
+    
     //
     printf("invalid command.\n");
+    //
+    
+    return 0;
 }
