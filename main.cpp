@@ -1,4 +1,4 @@
-#if defined(_MSC_VER)
+﻿#if defined(_MSC_VER)
 #define WINDOWS
 #else
 #define CLANG
@@ -28,9 +28,6 @@
 //
 #if defined(WINDOWS)
 #include <windows.h>
-#include <Shlwapi.h>
-#pragma comment(lib,"winmm.lib")
-#pragma comment(lib,"Shlwapi.lib")
 #endif
 
 #if defined(CLANG)
@@ -49,7 +46,7 @@ std::string g_sakuraPath;
  */
 static void doCommand(const std::string& command)
 {
-#if defined(WINDOWS)
+#if defined(WINDOWS) && false
     PROCESS_INFORMATION pi = { 0 };
     STARTUPINFO si = { sizeof(STARTUPINFO) };
     CreateProcess(
@@ -74,11 +71,7 @@ public:
     Date(int32_t dayDif = 0)
     {
         const time_t rawTime = time(nullptr);
-#if defined(WINDOWS)
-        localtime_s(&t_, &rawTime);
-#else
         t_ = *localtime(&rawTime);
-#endif
         //
         t_.tm_mday += dayDif;
         mktime(&t_);
@@ -87,11 +80,7 @@ public:
     Date(int32_t month, int32_t mday)
     {
         const time_t rawTime = time(nullptr);
-#if defined(WINDOWS)
-        localtime_s(&t_, &rawTime);
-#else
         t_ = *localtime(&rawTime);
-#endif
         // 今年のその日が終わっていたら来年扱い
         if ((month < t_.tm_mon) || (t_.tm_mon == month && mday < t_.tm_mday ))
         {
