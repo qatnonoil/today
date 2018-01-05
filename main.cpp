@@ -144,8 +144,10 @@ private:
  */
 struct FileStat
 {
+    // ファイルが存在するか
     bool exist = false;
-    int32_t fileSize = 0;
+    // ファイルが空か。BOM付の場合はBOMを除いたテキスト部分のファイルサイズが0か。
+    bool empty = false;
 };
 
 /*
@@ -153,19 +155,39 @@ struct FileStat
  ファイルが存在するか
  -----------------------------------------------
  */
-FileStat fileStat(const std::string& fileName)
+static FileStat fileStat(const std::string& fileName)
 {
-#if defined(WINDOWS)
-    //
-    struct _stat s;
-    const bool fileExist = (_stat(fileName.c_str(), &s) == 0);
-#else
-    struct stat s;
-    const bool fileExist = (stat(fileName.c_str(), &s) == 0);
-#endif
+    bool exist = false;
+    bool empty = false;
+    FILE* file = nullptr;
+    file = fopen(fileName.c_str(), "rb");
+    if (file != nullptr)
+    {
+        exist = true;
+        //
+        uint8_t firstCh = fgetc(file);
+        if (firstCh == EOF)
+        {
+            empty = true;
+        }
+        // BOM
+        else if(
+            (0xEF == firstCh) &&
+            (0xBB == fgetc(file)) &&
+            (0xBF == fgetc(file)) )
+        {
+            // BOMのみだったら空ファイル扱い
+            if (fgetc(file) == EOF)
+            {
+                empty = true;
+            }
+        }
+        fclose(file);
+    }
+
     FileStat fs;
-    fs.exist = fileExist;
-    fs.fileSize = s.st_size;
+    fs.exist = exist;
+    fs.empty = empty;
     return fs;
 }
 
@@ -789,8 +811,7 @@ int32_t main(int32_t argc, char* argv[])
     for (auto& path : getAllTextFileList())
     {
         const FileStat stat = fileStat(path);
-        if (stat.exist &&
-            stat.fileSize == 0)
+        if (stat.exist && stat.empty )
         {
             printf("Delete [%s]\n", path.c_str());
             std::remove(path.c_str());
