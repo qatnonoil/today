@@ -165,7 +165,7 @@ static FileStat fileStat(const std::string& fileName)
     {
         exist = true;
         //
-        uint8_t firstCh = fgetc(file);
+        const int32_t firstCh = fgetc(file);
         if (firstCh == EOF)
         {
             empty = true;
@@ -290,9 +290,24 @@ static void openFile(const std::string& fileName,
         const std::string command = "touch " + fileName;
         doCommand(command.c_str());
 #endif
-        std::ofstream file;
-        file.open(fileName);
-        file << appendStr;
+
+#if 0 // NOTE: うまく動かないのでコメントアウトしておく
+        // BOMを付ける
+        {
+            std::wofstream file;
+            file.open(fileName, std::ios::binary);
+            const wchar_t BOM = 0xFEFF;
+            file << BOM;
+            file.close();
+        }
+#endif 
+        // 追加文字列の書き込み
+        {
+            std::ofstream file;
+            file.open(fileName);
+            file << appendStr;
+            file.close();
+        }
     }
     // ファイルを開く
 #if defined(WINDOWS)
