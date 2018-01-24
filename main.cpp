@@ -1,4 +1,4 @@
-﻿#if defined(_MSC_VER)
+#if defined(_MSC_VER)
 #define WINDOWS
 #else
 #define CLANG
@@ -819,9 +819,16 @@ int32_t main(int32_t argc, char* argv[])
     // テキストのパス
     g_txtPath = iniFile.get("config", "txtdir", "");
     printf("txt path [%s]\n", g_txtPath.c_str());
+    // テキストのパスが空であったら何もしない
+    if(g_txtPath.empty() || g_txtPath == "")
+    {
+        printf("TxtPath is invalid\n");
+        return 0;
+    }
     // sakuraのパス
     g_sakuraPath = iniFile.get("config", "sakuraPath", "");
     printf("sakura path [%s]\n", g_sakuraPath.c_str());
+    
     // 指定テキストフォルダ以下で空のファイルは全て削除する
     for (auto& path : getAllTextFileList())
     {
