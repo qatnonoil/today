@@ -1,4 +1,4 @@
-#if defined(_MSC_VER)
+﻿#if defined(_MSC_VER)
 #define WINDOWS
 #else
 #define CLANG
@@ -812,6 +812,8 @@ static std::string getExePath(const char* arg0)
  */
 int32_t main(int32_t argc, char* argv[])
 {
+    // 
+    printf("Build(%s)\n", __DATE__);
     // 実行ファイルのパスを取得
     const std::string exePath = getExePath(argv[0]);
     // IniFileを開く
