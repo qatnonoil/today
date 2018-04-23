@@ -695,8 +695,8 @@ public:
 #if defined(WINDOWS)
         // sakuraの起動
         const std::string command =
-        "\"" + g_sakuraPath + "\" -GREPMODE -GFOLDER=" + g_txtPath +
-        " -GKEY=\"" + std::string(key) + "\"  -GOPT=PS -GCODE=99 -GFILE=*.txt,*.md";
+        "\"\"" + g_sakuraPath + "\" -GREPMODE -GFOLDER=" + g_txtPath +
+        " -GKEY=\"" + std::string(key) + "\"  -GOPT=PS -GCODE=99 -GFILE=*.txt,*.md\"";
         printf("cmd %s\n", command.c_str());
         doCommand(command);
 #else
@@ -795,10 +795,14 @@ public:
  実行ファイルのあるディレクトリを返す
  -----------------------------------------------
  */
-static std::string getExePath(const char* arg0)
+static std::string getExeDir()
 {
-    std::string aux(arg0);
+    std::string aux;
 #if defined(_WIN32) || defined(WIN32)
+    // aliasから起動した場合、argv[0]にフルパスは入っていないので明示的に取り出す
+    char fullPath[MAX_PATH + 1];
+    GetModuleFileName(nullptr, fullPath, MAX_PATH);
+    aux.assign(fullPath);
     size_t pos = aux.rfind('\\');
 #else
     size_t pos = aux.rfind('/');
@@ -815,7 +819,7 @@ int32_t main(int32_t argc, char* argv[])
     // 
     printf("Build(%s)\n", __DATE__);
     // 実行ファイルのパスを取得
-    const std::string exePath = getExePath(argv[0]);
+    const std::string exePath = getExeDir();
     // IniFileを開く
     IniFile iniFile(exePath + "today.ini");
     // テキストのパス
