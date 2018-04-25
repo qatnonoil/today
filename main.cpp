@@ -1,4 +1,4 @@
-﻿#if defined(_MSC_VER)
+#if defined(_MSC_VER)
 #define WINDOWS
 #else
 #define CLANG
@@ -34,6 +34,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <mach-o/dyld.h>
 #endif
 
 std::string g_txtPath;
@@ -201,10 +202,13 @@ class IniFile
 public:
     IniFile(const std::string& fileName)
     {
+        //
+        printf("IniFile: %s\n", fileName.c_str());
         // ファイルを開く
         FILE* file = fopen(fileName.c_str(), "rt");
         if (file == nullptr)
         {
+            printf("Cant open inifile\n");
             return;
         }
         //
@@ -805,6 +809,10 @@ static std::string getExeDir()
     aux.assign(fullPath);
     size_t pos = aux.rfind('\\');
 #else
+    char fullPath[1024];
+    uint32_t size = sizeof(fullPath);
+    _NSGetExecutablePath(fullPath, &size);
+    aux.assign(fullPath);
     size_t pos = aux.rfind('/');
 #endif
     return aux.substr(0,pos+1);
@@ -820,20 +828,14 @@ int32_t main(int32_t argc, char* argv[])
     printf("Build(%s)\n", __DATE__);
     // 実行ファイルのパスを取得
     const std::string exePath = getExeDir();
+    printf("Exe: %s\n", exePath.c_str());
     // IniFileを開く
     IniFile iniFile(exePath + "today.ini");
     // テキストのパス
-    g_txtPath = iniFile.get("config", "txtdir", "");
-    printf("txt path [%s]\n", g_txtPath.c_str());
-    // テキストのパスが空であったら何もしない
-    if(g_txtPath.empty() || g_txtPath == "")
-    {
-        printf("TxtPath is invalid\n");
-        return 0;
-    }
+    g_txtPath = exePath;
     // sakuraのパス
     g_sakuraPath = iniFile.get("config", "sakuraPath", "");
-    printf("sakura path [%s]\n", g_sakuraPath.c_str());
+    printf("sakura path %s\n", g_sakuraPath.c_str());
     
     // 指定テキストフォルダ以下で空のファイルは全て削除する
     for (auto& path : getAllTextFileList())
