@@ -1,4 +1,4 @@
-#if defined(_MSC_VER)
+﻿#if defined(_MSC_VER)
 #define WINDOWS
 #else
 #define CLANG
@@ -291,27 +291,16 @@ static void openFile(const std::string& fileName,
             return;
         }
 #if defined(CLANG)
+        これ必要？
         const std::string command = "touch " + fileName;
         doCommand(command.c_str());
 #endif
-
-#if 0 // NOTE: うまく動かないのでコメントアウトしておく
-        // BOMを付ける
-        {
-            std::wofstream file;
-            file.open(fileName, std::ios::binary);
-            const wchar_t BOM = 0xFEFF;
-            file << BOM;
-            file.close();
-        }
-#endif 
-        // 追加文字列の書き込み
-        {
-            std::ofstream file;
-            file.open(fileName);
-            file << appendStr;
-            file.close();
-        }
+        // BOMを付け、追加文字も書き込む
+        std::ofstream file(fileName);
+        unsigned char bom[] = { 0xEF,0xBB,0xBF };
+        file.write((char*)bom, sizeof(bom));
+        file << appendStr;
+        file.close();
     }
     // ファイルを開く
 #if defined(WINDOWS)
