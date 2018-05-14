@@ -60,6 +60,28 @@ static void doCommand(const std::string& command)
 }
 
 /*
+-----------------------------------------------
+日付回り
+-----------------------------------------------
+*/
+static int32_t numDay(int32_t year, int32_t month, int32_t day)
+{
+    // 現在時刻を得る
+    const time_t now = time(nullptr);
+
+    // 目的の日時の設定
+    tm t = {};
+    t.tm_year = year - 1900;
+    t.tm_mon = month - 1;
+    t.tm_mday = day;
+    const time_t aim = mktime(&t);
+
+    // 差の計算
+    const long diffTimeInMs = long(difftime(aim, now));
+    return int32_t(diffTimeInMs / (60 * 24 * 60)) + 1;
+}
+
+/*
  -----------------------------------------------
  日付回り
  -----------------------------------------------
@@ -200,6 +222,7 @@ static FileStat fileStat(const std::string& fileName)
 class IniFile
 {
 public:
+    IniFile() = default;
     IniFile(const std::string& fileName)
     {
         //
@@ -247,7 +270,7 @@ public:
         //
         fclose(file);
     }
-    std::string get(const std::string& region, const std::string& key, const std::string& defalutValue)
+    std::string get(const std::string& region, const std::string& key, const std::string& defalutValue) const
     {
         //
         auto regionIte = regions.find(region);
@@ -256,7 +279,7 @@ public:
             return defalutValue;
         }
         //
-        Configs& configs = regionIte->second;
+        const Configs& configs = regionIte->second;
         auto configIte = configs.find(key);
         if (configIte == configs.end())
         {
@@ -272,6 +295,8 @@ private:
     typedef std::unordered_map<std::string, Configs> Regions;
     Regions regions;
 };
+//
+static IniFile g_iniFile;
 
 
 /*
@@ -388,9 +413,15 @@ static std::string templateString(const Date& date)
     // 日付テキスト
     const std::string mdayFileName = std::string("template/") + std::to_string(date.mday()) + "日.md";
     const std::string mdayTxt = readFileAll(g_txtPath + mdayFileName);
+
+    // 日を追加
+    const int32_t year = std::atoi(g_iniFile.get("goal", "year", "").c_str());
+    const int32_t month = std::atoi(g_iniFile.get("goal", "month", "").c_str());
+    const int32_t day = std::atoi(g_iniFile.get("goal", "day", "").c_str());
+    const std::string rday = "remain: " + std::to_string(numDay(year, month, day)) + "day.";
     
     // 全てのテキストを返す
-    return everydayTxt + wdayTxt + mdayTxt;
+    return everydayTxt + wdayTxt + mdayTxt + rday;
 }
 
 /*
@@ -819,11 +850,11 @@ int32_t main(int32_t argc, char* argv[])
     const std::string exePath = getExeDir();
     printf("Exe: %s\n", exePath.c_str());
     // IniFileを開く
-    IniFile iniFile(exePath + "today.ini");
+    g_iniFile = IniFile(exePath + "today.ini");
     // テキストのパス
     g_txtPath = exePath;
     // sakuraのパス
-    g_sakuraPath = iniFile.get("config", "sakuraPath", "");
+    g_sakuraPath = g_iniFile.get("config", "sakuraPath", "");
     printf("sakura path %s\n", g_sakuraPath.c_str());
     
     // 指定テキストフォルダ以下で空のファイルは全て削除する
@@ -879,7 +910,7 @@ int32_t main(int32_t argc, char* argv[])
     }
     
     // プリセットのコマンドになければカスタムされたコマンド
-    const std::string customCmd = iniFile.get("custom", cmd, "");
+    const std::string customCmd = g_iniFile.get("custom", cmd, "");
     if (customCmd != "")
     {
         if (customCmd == "month")
