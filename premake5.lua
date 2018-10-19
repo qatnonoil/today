@@ -10,6 +10,7 @@ project "td"
    includedirs { "src" }
    files { "main.cpp", "premake.lua" }
    characterset "MBCS"
+   cppdialect "C++17"
 
    filter { "system:macosx", "language:C++" }
      buildoptions "-std=c++11 -stdlib=libc++"

@@ -24,6 +24,7 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <filesystem>
 
 //
 #if defined(WINDOWS)
@@ -425,93 +426,29 @@ static std::string templateString(const Date& date)
 }
 
 /*
- -----------------------------------------------
- 指定したフォルダ以下の全てのファイルを列挙する
- -----------------------------------------------
- */
+-----------------------------------------------
+全てのテキストのリストを返す
+-----------------------------------------------
+*/
 static std::vector<std::string> getFileList(const std::string& folderPath)
 {
-    //
-    std::vector<std::string> fileList;
-    //
-#if defined(WINDOWS)
-    HANDLE hFind;
-    WIN32_FIND_DATA fd;
-    const std::string folderPathWithWild = folderPath + "*.*";
-    hFind = FindFirstFile(folderPathWithWild.c_str(), &fd);
-    if (hFind == INVALID_HANDLE_VALUE)
+    std::vector<std::string> ret;
+    for (auto& f : std::filesystem::recursive_directory_iterator(folderPath))
     {
-        return fileList;
+        if (f.is_directory())
+        {
+            continue;
+        }
+        ret.push_back(f.path().string());
     }
-    //
-    do
-    {
-        const bool isFolder = (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
-        // フォルダーの場合
-        if (isFolder)
-        {
-            const bool invalidPath =
-            (strcmp(fd.cFileName, ".") == 0) ||
-            (strcmp(fd.cFileName, "..") == 0);
-            if (!invalidPath)
-            {
-                const std::string subFolderPath = folderPath + std::string(fd.cFileName) + "\\";
-                auto subFolderList = getFileList(subFolderPath);
-                fileList.insert(fileList.end(), subFolderList.begin(), subFolderList.end());
-            }
-        }
-        // ファイルの場合
-        else
-        {
-            fileList.push_back(folderPath + fd.cFileName);
-        }
-    } while (FindNextFile(hFind, &fd));
-    
-    FindClose(hFind);
-    
-    return fileList;
-#else
-    DIR* dir = nullptr;
-    struct dirent* ent = nullptr;
-    if ((dir = opendir (folderPath.c_str())) != nullptr)
-    {
-        while ((ent = readdir (dir)) != nullptr)
-        {
-            const bool isFolder = (ent->d_type == DT_DIR);
-            if(isFolder)
-            {
-                const bool invalidPath =
-                (strcmp(ent->d_name, ".") == 0) ||
-                (strcmp(ent->d_name, "..") == 0);
-                if (!invalidPath)
-                {
-                    const std::string subFolderPath = folderPath + std::string(ent->d_name) + "/";
-                    auto subFolderList = getFileList(subFolderPath);
-                    fileList.insert(fileList.end(), subFolderList.begin(), subFolderList.end());
-                }
-            }
-            // ファイルの場合のみ見る
-            else if(ent->d_type == DT_REG)
-            {
-                const bool invalidFile =
-                (strcmp(ent->d_name, ".DS_Store") == 0);
-                if(!invalidFile)
-                {
-                    fileList.push_back(folderPath + std::string(ent->d_name));
-                }
-            }
-        }
-        closedir (dir);
-    }
-    return fileList;
-#endif
+    return ret;
 }
 
 /*
- -----------------------------------------------
- 全てのテキストのリストを返す
- -----------------------------------------------
- */
+-----------------------------------------------
+全てのテキストのリストを返す
+-----------------------------------------------
+*/
 static std::vector<std::string> getAllTextFileList()
 {
     return getFileList(g_txtPath);
